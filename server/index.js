@@ -18,6 +18,6 @@ app.get('/api/entries', async (_req,res) => { try { const {rows}=await pool.quer
 app.post('/api/entries', async (req,res) => { try { const {rows}=await pool.query('insert into daily_entries (car_id,driven_km,driven_on) values ($1,$2,$3) returning id,driven_on as date,driven_km as km,car_id as car',[req.body.car,req.body.km,req.body.date]); res.status(201).json(rows[0]); } catch(e){fail(res,e);} });
 app.delete('/api/entries/:id', async (req,res) => { try { await pool.query('delete from daily_entries where id=$1',[req.params.id]); res.status(204).end(); } catch(e){fail(res,e);} });
 
-if (process.env.NODE_ENV === 'production') { app.use(express.static(path.join(here, '..', 'dist'))); app.get('*', (_req,res)=>res.sendFile(path.join(here,'..','dist','index.html'))); }
+if (process.env.NODE_ENV === 'production') { app.use(express.static(path.join(here, '..', 'dist'))); app.get(/.*/, (_req,res)=>res.sendFile(path.join(here,'..','dist','index.html'))); }
 
 migrate().then(()=>app.listen(port,()=>console.log(`Fuel Tracker API listening on ${port}`))).catch(error=>{ console.error('Migration failed',error); process.exit(1); });
