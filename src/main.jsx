@@ -1,0 +1,44 @@
+import React, {useMemo, useState} from 'react';
+import {createRoot} from 'react-dom/client';
+import './styles.css';
+
+const seedCars = [
+  {id:'blue', name:'Blue Hatch', type:'2020 Hatchback', efficiency:18, tint:'sage', icon:'🚙'},
+  {id:'red', name:'Red SUV', type:'2022 SUV', efficiency:12, tint:'peach', icon:'🚗'}
+];
+const seedEntries = [
+  {date:'20 May 2025', car:'red', km:78}, {date:'18 May 2025', car:'blue', km:112},
+  {date:'15 May 2025', car:'blue', km:96}, {date:'12 May 2025', car:'red', km:105}, {date:'10 May 2025', car:'blue', km:134}
+];
+const money = n => `Rs ${n.toFixed(2)}`;
+function Icon({children}) { return <span className="icon">{children}</span> }
+
+function App(){
+  const [cars,setCars] = useState(seedCars); const [entries,setEntries] = useState(seedEntries);
+  const [rate,setRate] = useState(280); const [tab,setTab] = useState('Overview');
+  const [modal,setModal] = useState(false); const [editingRate,setEditingRate] = useState(false);
+  const [newEntry,setNewEntry] = useState({car:'blue',km:'',date:''});
+  const [selectedEntries,setSelectedEntries] = useState([]);
+  const totals = useMemo(()=>cars.map(car=>{ const km=entries.filter(e=>e.car===car.id).reduce((a,e)=>a+Number(e.km),0); return {...car,km,cost:km/car.efficiency*rate};}),[cars,entries,rate]);
+  const totalCost = totals.reduce((a,c)=>a+c.cost,0);
+  const addEntry = e => {e.preventDefault(); if(!newEntry.km || !newEntry.date) return; setEntries([{...newEntry,km:Number(newEntry.km),date:new Date(newEntry.date+'T12:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})},...entries]); setModal(false); setNewEntry({car:'blue',km:'',date:''});};
+  const updateCar = (id,key,val) => setCars(cs=>cs.map(c=>c.id===id?{...c,[key]:val}:c));
+  const toggleEntry = index => setSelectedEntries(current => current.includes(index) ? current.filter(i=>i!==index) : [...current,index]);
+  const toggleAllEntries = () => setSelectedEntries(selectedEntries.length===entries.length ? [] : entries.map((_,i)=>i));
+  const deleteSelected = () => { setEntries(entries.filter((_,i)=>!selectedEntries.includes(i))); setSelectedEntries([]); };
+  return <div className="app-shell">
+    <aside className="sidebar"><div className="brand"><div className="brand-mark">⌁</div><span>Fuel Tracker</span></div><nav>{['Overview','Daily log','Cars','Settings'].map((item,i)=><button className={tab===item?'active':''} onClick={()=>setTab(item)} key={item}><Icon>{['⌂','▤','▰','⚙'][i]}</Icon>{item}</button>)}</nav><div className="side-note"><span>⌁</span><p>Keep every commute<br/>fair and transparent.</p></div></aside>
+    <main className="main"><header className="topbar"><div><h1>{tab==='Overview'?'Good morning, Alex':tab}</h1><p className="date">Tuesday, 20 May 2025</p></div><div className="rate-box"><span className="fuel-icon">⛽</span><div><span className="label">Petrol rate <small>(per litre)</small></span>{editingRate?<input autoFocus value={rate} onChange={e=>setRate(Number(e.target.value)||0)} onBlur={()=>setEditingRate(false)} className="rate-input"/>:<strong>{money(rate)}</strong>}</div><button onClick={()=>setEditingRate(true)} className="quiet-btn">Edit</button></div></header>
+      {tab==='Overview' && <>
+      <section className="hero-card"><div><span className="eyebrow">FUEL SPEND</span><div className="hero-number">{money(totalCost)}</div><div className="hero-caption">Total this month</div></div><div className="spark"><div className="spark-head"><span>Last 7 days</span><strong>{money(totalCost/7)}</strong></div><div className="bars">{[620,780,690,450,900,560,500].map((v,i)=><div className="bar-col" key={i}><span>{money(v)}</span><div className="bar" style={{height:`${v/20}px`}}></div><small>{['Wed','Thu','Fri','Sat','Sun','Mon','Tue'][i]}</small></div>)}</div></div></section>
+      <section className="car-grid">{totals.map(car=><article className={`car-card ${car.tint}`} key={car.id}><div className="car-head"><div><h2>{car.name}</h2><p>{car.type}</p></div><button className="outline-btn" onClick={()=>setTab('Cars')}>View details <span>→</span></button></div><div className="car-body"><div className="car-art">{car.icon}</div><div className="car-stats"><div><span>⛽</span><b>{car.efficiency} km/L</b><small>Average fuel efficiency</small></div><div><span>⌁</span><b>{car.km} km</b><small>Total this month</small></div><div><span>▤</span><b>{money(car.cost)}</b><small>Fuel cost this month</small></div></div></div></article>)}</section>
+      <section className="log-panel"><div className="panel-head"><div><h2>Recent fuel log</h2><p>Your latest refuels and trips</p></div><button className="primary-btn" onClick={()=>setModal(true)}>＋ Add entry</button></div><div className="table-wrap"><table><thead><tr><th>Date <span>↓</span></th><th>Car</th><th>Kilometres driven</th><th>Estimated fuel (L)</th><th>Cost</th><th></th></tr></thead><tbody>{entries.map((entry,i)=>{const car=cars.find(c=>c.id===entry.car)||cars[0]; const fuel=entry.km/car.efficiency; return <tr key={i}><td>{entry.date}</td><td><span className={`dot ${car.tint}`}></span>{car.name}</td><td>{entry.km}</td><td>{fuel.toFixed(1)}</td><td><b>{money(fuel*rate)}</b></td><td>•••</td></tr>})}</tbody></table></div></section>
+      </>}
+      {tab==='Daily log' && <section className="page-panel"><div className="panel-head"><div><h2>Daily fuel log</h2><p>Add each office commute to keep the split accurate.</p></div><button className="primary-btn" onClick={()=>setModal(true)}>＋ Add entry</button></div>{selectedEntries.length>0 && <div className="bulk-bar"><span>{selectedEntries.length} selected</span><button className="bulk-delete" onClick={deleteSelected}>Delete selected</button><button className="bulk-clear" onClick={()=>setSelectedEntries([])}>Clear</button></div>}<div className="table-wrap"><table><thead><tr><th className="check-cell"><input type="checkbox" checked={entries.length>0&&selectedEntries.length===entries.length} onChange={toggleAllEntries} aria-label="Select all entries"/></th><th>Date</th><th>Car</th><th>Kilometres driven</th><th>Estimated fuel (L)</th><th>Cost</th></tr></thead><tbody>{entries.map((entry,i)=>{const car=cars.find(c=>c.id===entry.car)||cars[0]; const fuel=entry.km/car.efficiency; return <tr key={i}><td className="check-cell"><input type="checkbox" checked={selectedEntries.includes(i)} onChange={()=>toggleEntry(i)} aria-label={`Select ${entry.date}`}/></td><td>{entry.date}</td><td>{car.name}</td><td>{entry.km}</td><td>{fuel.toFixed(1)}</td><td><b>{money(fuel*rate)}</b></td></tr>})}</tbody></table></div></section>}
+      {tab==='Cars' && <section className="page-panel"><div className="panel-head"><div><h2>Your cars</h2><p>Set the names and average fuel efficiency used for calculations.</p></div></div><div className="settings-grid">{cars.map(car=><div className="setting-card" key={car.id}><div className="setting-icon">{car.icon}</div><label>Car name<input value={car.name} onChange={e=>updateCar(car.id,'name',e.target.value)}/></label><label>Average efficiency <span className="unit">km/L</span><input type="number" step="0.1" value={car.efficiency} onChange={e=>updateCar(car.id,'efficiency',Number(e.target.value))}/></label></div>)}</div></section>}
+      {tab==='Settings' && <section className="page-panel"><div className="panel-head"><div><h2>Settings</h2><p>Keep the shared assumptions up to date.</p></div></div><div className="settings-grid"><div className="setting-card"><div className="setting-icon">⛽</div><label>Petrol rate <span className="unit">per litre</span><input type="number" step="0.01" value={rate} onChange={e=>setRate(Number(e.target.value))}/></label><p className="hint">Used for every new and existing entry.</p></div></div></section>}
+    </main>
+    {modal && <div className="modal-backdrop" onMouseDown={()=>setModal(false)}><form className="modal" onSubmit={addEntry} onMouseDown={e=>e.stopPropagation()}><div className="modal-head"><div><h2>Add daily entry</h2><p>Log the kilometres driven to office.</p></div><button type="button" className="close" onClick={()=>setModal(false)}>×</button></div><label>Date<input type="date" value={newEntry.date} onChange={e=>setNewEntry({...newEntry,date:e.target.value})} required/></label><label>Car<select value={newEntry.car} onChange={e=>setNewEntry({...newEntry,car:e.target.value})}>{cars.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Kilometres driven<input type="number" min="0" placeholder="e.g. 42" value={newEntry.km} onChange={e=>setNewEntry({...newEntry,km:e.target.value})} required/></label><button className="primary-btn full" type="submit">Save entry</button></form></div>}
+  </div>
+}
+createRoot(document.getElementById('root')).render(<App/>);
